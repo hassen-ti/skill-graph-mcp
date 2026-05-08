@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skill Graph MCP — GraphRAG Knowledge Base for Claude</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --accent3: #d2a8ff;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --code-bg: #1f2937;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13,17,23,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-logo { font-weight: 700; font-size: 1rem; color: var(--text); text-decoration: none; }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: .9rem; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent); color: #0d1117;
+      padding: .35rem .9rem; border-radius: 6px;
+      font-size: .85rem; font-weight: 600; text-decoration: none;
+      transition: opacity .2s;
+    }
+    .nav-cta:hover { opacity: .85; }
+
+    /* ── HERO ── */
+    .hero {
+      padding: 6rem 2rem 4rem;
+      text-align: center;
+      background: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(88,166,255,.12), transparent);
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(88,166,255,.12);
+      color: var(--accent);
+      border: 1px solid rgba(88,166,255,.25);
+      border-radius: 20px;
+      padding: .25rem .75rem;
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.25rem;
+      letter-spacing: -.02em;
+    }
+    h1 .hl { color: var(--accent); }
+    .hero-sub {
+      max-width: 640px; margin: 0 auto 2.5rem;
+      color: var(--muted); font-size: 1.1rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--accent); color: #0d1117;
+      padding: .65rem 1.5rem; border-radius: 8px;
+      font-size: .95rem; font-weight: 700; text-decoration: none;
+      transition: opacity .2s;
+    }
+    .btn-primary:hover { opacity: .85; }
+    .btn-ghost {
+      border: 1px solid var(--border); color: var(--text);
+      padding: .65rem 1.5rem; border-radius: 8px;
+      font-size: .95rem; font-weight: 600; text-decoration: none;
+      transition: border-color .2s;
+    }
+    .btn-ghost:hover { border-color: var(--accent); }
+
+    /* ── FLOW DEMO ── */
+    .flow-block {
+      max-width: 760px; margin: 3rem auto 0;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      text-align: left;
+    }
+    .flow-block pre {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: .8rem; line-height: 1.7; color: var(--text);
+      overflow-x: auto;
+    }
+    .c-user { color: #79c0ff; }
+    .c-arrow { color: var(--muted); }
+    .c-call  { color: var(--accent2); }
+    .c-score { color: var(--accent3); }
+    .c-result{ color: #ffa657; }
+
+    /* ── STATS ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      max-width: 900px;
+      margin: 4rem auto;
+    }
+    .stat {
+      background: var(--surface);
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 2rem; font-weight: 800;
+      color: var(--accent); line-height: 1;
+      margin-bottom: .35rem;
+    }
+    .stat-label { font-size: .8rem; color: var(--muted); }
+
+    /* ── SECTIONS ── */
+    section { padding: 4rem 2rem; max-width: 1100px; margin: 0 auto; }
+    h2 {
+      font-size: 1.75rem; font-weight: 700;
+      margin-bottom: 2rem;
+      display: flex; align-items: center; gap: .6rem;
+    }
+    h2 .icon { font-size: 1.3rem; }
+
+    /* ── TOOLS GRID ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      transition: border-color .2s, transform .2s;
+    }
+    .tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .tool-name {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .9rem; color: var(--accent2);
+      margin-bottom: .5rem; font-weight: 600;
+    }
+    .tool-desc { color: var(--muted); font-size: .85rem; line-height: 1.5; }
+    .tool-badge {
+      display: inline-block; margin-top: .65rem;
+      background: rgba(63,185,80,.1); color: var(--accent2);
+      border: 1px solid rgba(63,185,80,.25);
+      border-radius: 4px; padding: .1rem .45rem;
+      font-size: .72rem; font-family: monospace;
+    }
+
+    /* ── ARCHITECTURE ── */
+    .arch-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      overflow-x: auto;
+    }
+    .arch-box pre {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .8rem; line-height: 1.8; color: var(--text);
+    }
+
+    /* ── QUICKSTART ── */
+    .steps { display: flex; flex-direction: column; gap: 1rem; }
+    .step {
+      display: grid;
+      grid-template-columns: 2.5rem 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .step-num {
+      width: 2.5rem; height: 2.5rem;
+      background: rgba(88,166,255,.12);
+      border: 1px solid rgba(88,166,255,.3);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; color: var(--accent);
+      font-size: .9rem; flex-shrink: 0;
+    }
+    .step-body h3 { font-size: 1rem; margin-bottom: .35rem; }
+    .step-body p { color: var(--muted); font-size: .88rem; }
+    code {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .1em .4em;
+      font-size: .85em;
+      color: #ffa657;
+    }
+    .code-block {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin-top: .5rem;
+    }
+    .code-block pre {
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: .8rem; line-height: 1.7; color: var(--text);
+    }
+
+    /* ── GRAPH SCHEMA ── */
+    .schema-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 640px) { .schema-grid { grid-template-columns: 1fr; } }
+    .schema-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+    }
+    .schema-card h4 { font-size: .85rem; color: var(--accent3); margin-bottom: .5rem; font-family: monospace; }
+    .schema-card ul { list-style: none; font-size: .82rem; color: var(--muted); }
+    .schema-card ul li { padding: .15rem 0; }
+    .schema-card ul li span { color: var(--text); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── DIVIDER ── */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#"><span>Skill</span>Graph MCP</a>
+  <ul class="nav-links">
+    <li><a href="#tools">Tools</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#quickstart">Quick Start</a></li>
+  </ul>
+  <a class="nav-cta" href="https://github.com/Hassen-Ti/skill-graph-mcp" target="_blank" rel="noopener">View on GitHub</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="badge">Model Context Protocol</div>
+  <h1>
+    <span class="hl">732 skills.</span><br />
+    Semantic search.<br />Graph traversal.
+  </h1>
+  <p class="hero-sub">
+    Claude automatically loads expert context by navigating a Neo4j knowledge graph —
+    <strong>zero manual installation</strong>.
+  </p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="#quickstart">Get Started</a>
+    <a class="btn-ghost" href="https://github.com/Hassen-Ti/skill-graph-mcp" target="_blank" rel="noopener">★ View on GitHub</a>
+  </div>
+
+  <!-- Live demo flow -->
+  <div class="flow-block">
+    <pre><span class="c-user">User:</span>  "I want to build a real-time e-commerce site with Stripe"
+<span class="c-arrow">  └─►</span> Claude calls <span class="c-call">search_skills</span>("e-commerce stripe payments")
+        <span class="c-arrow">└─►</span> <span class="c-score">semantic_score:</span> stripe-integration [0.73], payment-integration [0.75]
+              <span class="c-arrow">└─►</span> Claude calls <span class="c-call">get_skill</span>("stripe-integration")
+                    <span class="c-arrow">└─►</span> <span class="c-result">Full expert context loaded → Claude is now a Stripe expert</span></pre>
+  </div>
+</header>
+
+<!-- STATS -->
+<div style="padding: 0 2rem;">
+  <div class="stats">
+    <div class="stat"><div class="stat-value">732</div><div class="stat-label">Skills in graph</div></div>
+    <div class="stat"><div class="stat-value">3 364</div><div class="stat-label">Semantic edges</div></div>
+    <div class="stat"><div class="stat-value">8.8</div><div class="stat-label">Avg node degree</div></div>
+    <div class="stat"><div class="stat-value">0.73+</div><div class="stat-label">Avg search score</div></div>
+    <div class="stat"><div class="stat-value">&lt;500ms</div><div class="stat-label">Search latency</div></div>
+    <div class="stat"><div class="stat-value">1536</div><div class="stat-label">Embedding dims</div></div>
+  </div>
+</div>
+
+<hr class="section-divider" />
+
+<!-- MCP TOOLS -->
+<section id="tools">
+  <h2><span class="icon">🔧</span> MCP Tools</h2>
+  <div class="tools-grid">
+    <div class="tool-card">
+      <div class="tool-name">search_skills(query)</div>
+      <div class="tool-desc">Semantic search over 732 skills using OpenAI embeddings + Neo4j vector index. Returns top-3 candidates with semantic &amp; hub scores.</div>
+      <span class="tool-badge">vector search</span>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">get_skill(id, depth)</div>
+      <div class="tool-desc">Retrieve the full expert context for a skill including instructions, tools, and graph neighbors. <code>shallow</code> = L1, <code>full</code> = L1+L2.</div>
+      <span class="tool-badge">rate-limited 10/session</span>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">navigate(from_id, edge_type)</div>
+      <div class="tool-desc">Traverse typed edges from any node. Supports <code>REQUIRES</code>, <code>ENABLES</code>, <code>COLLABORATES_WITH</code>, <code>USES</code>, <code>EXTENDS</code>, <code>PART_OF</code>.</div>
+      <span class="tool-badge">graph traversal</span>
+    </div>
+    <div class="tool-card">
+      <div class="tool-name">get_knowledge(ref)</div>
+      <div class="tool-desc">Safe file read from the knowledge base. 3-layer path confinement with extension whitelist and symlink resolution.</div>
+      <span class="tool-badge">path-confined</span>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <h2><span class="icon">🏗</span> Architecture</h2>
+  <div class="arch-box">
+<pre>┌──────────────────────────────────────────────────────────────┐
+│                        Claude (LLM)                          │
+│                  calls MCP tools autonomously                │
+└──────────────────┬───────────────────────────────────────────┘
+                   │ stdio (MCP protocol)
+┌──────────────────▼───────────────────────────────────────────┐
+│              Skill Graph MCP Server (FastMCP)                │
+│                                                              │
+│  search_skills(query)  ──► embed query (OpenAI)              │
+│                             vector search (Neo4j)            │
+│                                                              │
+│  get_skill(id, depth)  ──► fetch node + payload              │
+│                             layer_1/layer_2 neighbors        │
+│                                                              │
+│  navigate(id, type)    ──► traverse edges by type            │
+│                                                              │
+│  get_knowledge(ref)    ──► safe file read (whitelist)        │
+└──────────────────┬───────────────────────────────────────────┘
+                   │ bolt://localhost:7687
+┌──────────────────▼───────────────────────────────────────────┐
+│                     Neo4j 5.x (Docker)                       │
+│  - 732 Skill nodes with 1536-dim embeddings                  │
+│  - Native vector index (cosine similarity)                   │
+│  - hub_score (degree centrality)                             │
+└──────────────────────────────────────────────────────────────┘</pre>
+  </div>
+
+  <br />
+  <h2 style="margin-top:2rem"><span class="icon">🗂</span> Graph Schema</h2>
+  <div class="schema-grid">
+    <div class="schema-card">
+      <h4>(:Skill) node properties</h4>
+      <ul>
+        <li><span>id</span> — unique, lowercase, hyphens</li>
+        <li><span>name</span> — human-readable label</li>
+        <li><span>description</span> — plain text</li>
+        <li><span>type</span> — domain / tool / role / cluster</li>
+        <li><span>hub_score</span> — degree centrality [0–1]</li>
+        <li><span>embedding</span> — Float[1536] OpenAI vector</li>
+        <li><span>payload_json</span> — instructions + tools</li>
+      </ul>
+    </div>
+    <div class="schema-card">
+      <h4>[:EDGE_TYPE] relationships</h4>
+      <ul>
+        <li><span>REQUIRES</span> — A cannot function without B</li>
+        <li><span>ENABLES</span> — A unlocks or enhances B</li>
+        <li><span>COLLABORATES_WITH</span> — semantic similarity</li>
+        <li><span>USES</span> — A leverages B as a tool</li>
+        <li><span>EXTENDS</span> — A specialises B</li>
+        <li><span>PART_OF</span> — A belongs to cluster B</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- QUICK START -->
+<section id="quickstart">
+  <h2><span class="icon">🚀</span> Quick Start</h2>
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Clone &amp; install</h3>
+        <div class="code-block"><pre>git clone https://github.com/Hassen-Ti/skill-graph-mcp.git
+cd skill-graph-mcp
+pip install -e .</pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Configure environment</h3>
+        <div class="code-block"><pre>cp .env.example .env
+# Fill in OPENAI_API_KEY and NEO4J_PASSWORD</pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Start Neo4j via Docker</h3>
+        <div class="code-block"><pre>docker-compose up -d
+# Neo4j UI → http://localhost:7474  (wait ~30s)</pre></div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Connect to Claude Desktop</h3>
+        <p>Add to <code>%APPDATA%\Claude\claude_desktop_config.json</code>:</p>
+        <div class="code-block"><pre>{
+  "mcpServers": {
+    "skill-graph": {
+      "command": "/path/to/python",
+      "args": ["-m", "server.main"],
+      "cwd": "/path/to/skill-graph-mcp",
+      "env": {
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_USER": "neo4j",
+        "NEO4J_PASSWORD": "your_password",
+        "OPENAI_API_KEY": "sk-..."
+      }
+    }
+  }
+}</pre></div>
+        <p style="margin-top:.5rem; color:var(--muted); font-size:.85rem;">Restart Claude Desktop — the MCP appears alongside your other servers.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<hr class="section-divider" />
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    Built with
+    <a href="https://github.com/jlowin/fastmcp" target="_blank" rel="noopener">FastMCP</a> ·
+    <a href="https://neo4j.com/" target="_blank" rel="noopener">Neo4j</a> ·
+    <a href="https://platform.openai.com/" target="_blank" rel="noopener">OpenAI Embeddings</a> ·
+    <a href="https://modelcontextprotocol.io/" target="_blank" rel="noopener">Model Context Protocol</a>
+  </p>
+  <p style="margin-top:.5rem;">
+    <a href="https://github.com/Hassen-Ti/skill-graph-mcp" target="_blank" rel="noopener">GitHub</a> ·
+    <a href="https://github.com/Hassen-Ti/skill-graph-mcp/blob/main/docs/SECURITY_AUDIT.md" target="_blank" rel="noopener">Security Audit</a> ·
+    MIT License
+  </p>
+</footer>
+
+</body>
+</html>
