@@ -18,6 +18,7 @@ def _build_parser() -> argparse.ArgumentParser:
     load_cmd.add_argument("skills_dir", type=Path)
     load_cmd.add_argument("--dry-run", action="store_true", default=False)
     load_cmd.add_argument("--schema", type=Path, default=None)
+    sub.add_parser("reindex", help="Drop and recreate the Neo4j vector index (required after changing embedding dims).")
     return parser
 
 
@@ -50,9 +51,27 @@ async def _run_load(skills_dir: Path, schema_path: Path, dry_run: bool) -> None:
         await driver.close()
 
 
+async def _run_reindex() -> None:
+    from neo4j import AsyncGraphDatabase
+    from server.graph.neo4j_client import Neo4jClient
+    uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    user = os.getenv("NEO4J_USER", "neo4j")
+    password = os.getenv("NEO4J_PASSWORD", "skillgraph")
+    driver = AsyncGraphDatabase.driver(uri, auth=(user, password))
+    client = Neo4jClient(driver)
+    try:
+        await client.reset_vector_index()
+        logger.info("Reindex complete.")
+    finally:
+        await driver.close()
+
+
 def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
+    if args.command == "reindex":
+        asyncio.run(_run_reindex())
+        return
     skills_dir: Path = args.skills_dir.resolve()
     if not skills_dir.is_dir():
         logger.error("skills_dir '%s' is not a directory.", skills_dir)

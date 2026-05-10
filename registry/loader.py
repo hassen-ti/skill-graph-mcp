@@ -86,7 +86,7 @@ async def load_skills_directory(skills_dir, schema_path, client, embedder_module
     cycles = await client.detect_cycles()
     if cycles:
         raise RuntimeError(f"Cycle detected: {cycles[0]}")
-    await embedder_module.update_embeddings(client._driver, registry)
+    await embedder_module.update_embeddings(client, registry)
     logger.info("Loaded %d skills.", len(registry))
 
 

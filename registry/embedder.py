@@ -15,8 +15,17 @@ def _metadata_path() -> Path:
     return Path(os.getenv("INDEX_METADATA_PATH", str(_DEFAULT_METADATA_PATH)))
 
 
-def _hash_description(description: str) -> str:
-    return hashlib.sha256(description.encode("utf-8")).hexdigest()
+def _build_embed_text(skill: dict) -> str:
+    """Combine description + payload instructions into a single embedding text."""
+    description = skill.get("description", "")
+    instructions = (skill.get("payload") or {}).get("instructions", "")
+    if instructions:
+        return f"{description}\n\n{instructions}"
+    return description
+
+
+def _hash_content(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def load_index_metadata() -> dict[str, str]:
@@ -50,11 +59,11 @@ async def update_embeddings(client: Any, registry: dict[str, dict]) -> None:
     updated_metadata = dict(stored_metadata)
     updated_count = 0
     for skill_id, skill in registry.items():
-        description = skill.get("description", "")
-        current_hash = _hash_description(description)
+        embed_text = _build_embed_text(skill)
+        current_hash = _hash_content(embed_text)
         if current_hash == stored_metadata.get(skill_id) and skill_id in embedded_in_graph:
             continue
-        await update_skill_embedding(client, skill_id, description)
+        await update_skill_embedding(client, skill_id, embed_text)
         updated_metadata[skill_id] = current_hash
         updated_count += 1
     save_index_metadata(updated_metadata)

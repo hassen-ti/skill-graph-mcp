@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 SKILL_LABEL = "Skill"
 VECTOR_INDEX_NAME = "skill_description_embedding"
-VECTOR_DIMENSIONS = 1536
+VECTOR_DIMENSIONS = 3072  # text-embedding-3-large
 
 
 class Neo4jClient:
@@ -32,6 +32,17 @@ class Neo4jClient:
             f"OPTIONS {{indexConfig: {{`vector.dimensions`: {VECTOR_DIMENSIONS}, "
             f"`vector.similarity_function`: 'cosine'}}}}"
         )
+
+    async def reset_vector_index(self) -> None:
+        """Drop and recreate the vector index — required when changing embedding dimensions."""
+        await self._run(f"DROP INDEX {VECTOR_INDEX_NAME} IF EXISTS")
+        await self._run(
+            f"CREATE VECTOR INDEX {VECTOR_INDEX_NAME} IF NOT EXISTS "
+            f"FOR (s:Skill) ON (s.embedding) "
+            f"OPTIONS {{indexConfig: {{`vector.dimensions`: {VECTOR_DIMENSIONS}, "
+            f"`vector.similarity_function`: 'cosine'}}}}"
+        )
+        logger.info("Vector index reset to %d dimensions.", VECTOR_DIMENSIONS)
 
     async def upsert_skill_node(self, data: dict) -> None:
         node_data = dict(data)
