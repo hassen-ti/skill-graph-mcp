@@ -69,26 +69,6 @@ User: "I want to build a real-time e-commerce site with Stripe"
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### Visualization pipeline (`viz/`)
-
-```
-staging/skills/*.yaml
-    │
-    ▼ parse_skills.py         — builds graph.json (nodes + keyword edges)
-    │
-    ▼ enrich_semantic.py      — adds KMeans communities + UMAP 2D positions
-    │   (reads embeddings from Neo4j, runs KMeans n=18, UMAP 1536D→2D)
-    │
-    ▼ build_html.py           — inlines graph.json into index_template.html
-    │
-    ▼ index.html              — standalone D3.js visualization (amber theme)
-                                gitignored — rebuild locally
-```
-
-> **Note on embedding strategy:** two separate embedding sets are maintained:
-> - **Search (Neo4j):** `payload.instructions` — full skill prompt, best semantic search quality
-> - **Visualization (KMeans/UMAP):** same Neo4j embeddings — clusters may be denser but positions are semantically meaningful
-
 ---
 
 ## Prerequisites
@@ -148,19 +128,7 @@ python -m registry.cli load staging/skills/ --schema skills/schema.json
 python scripts/push_embeddings_v3.py
 ```
 
-### 5. Build the visualization (optional)
-
-```bash
-# Build graph.json from staging skills
-python viz/parse_skills.py
-
-# Enrich with semantic layout (requires Neo4j running)
-python viz/enrich_semantic.py   # ~30s for UMAP on 732 skills
-
-# Output: viz/index.html — open in browser, no server needed
-```
-
-### 6. Connect to Claude
+### 5. Connect to Claude
 
 Add to your `claude_desktop_config.json` (`%APPDATA%\Claude\` on Windows):
 
@@ -319,6 +287,4 @@ The 732 skills embedded in this graph come from the [antigravity-awesome-skills]
 - [FastMCP](https://github.com/jlowin/fastmcp) — Python MCP server framework
 - [Neo4j](https://neo4j.com/) — Graph database with native vector index
 - [OpenAI](https://platform.openai.com/) — `text-embedding-3-large` embeddings (3072 dims, full skill content)
-- [D3.js](https://d3js.org/) — Interactive skill graph visualization
-- [UMAP](https://umap-learn.readthedocs.io/) — Dimensionality reduction for viz layout
 - [Model Context Protocol](https://modelcontextprotocol.io/) — Claude tool integration
