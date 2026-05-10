@@ -11,6 +11,9 @@ index_metadata.json
 viz/graph.json
 viz/index.html
 
+# Viz — local analytics workspace
+viz/analytics/
+
 # Python
 __pycache__/
 *.py[cod]
