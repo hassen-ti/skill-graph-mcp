@@ -28,14 +28,17 @@ User: "I want to build a real-time e-commerce site with Stripe"
 | Skills in graph | 732 nodes |
 | Semantic edges | 3,364 relationships |
 | Embedding model | OpenAI `text-embedding-3-small` (1536 dims) |
+| Embedding source | `payload.instructions` (full skill prompt, ~6700 chars avg) |
 | Graph database | Neo4j 5.x with native vector index |
 | Average node degree | 8.8 |
-| Avg semantic search score | 0.73+ |
+| Search Precision@5 | 0.875 (evaluated over 20 queries) |
 | Search latency | < 500ms |
 
 ---
 
 ## Architecture
+
+### MCP Server
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -60,11 +63,31 @@ User: "I want to build a real-time e-commerce site with Stripe"
                    │ bolt://localhost:7687
 ┌──────────────────▼───────────────────────────────────────────┐
 │                Neo4j 5.x (Docker)                            │
-│  - 732 Skill nodes with embeddings                           │
+│  - 732 Skill nodes with embeddings (payload.instructions)    │
 │  - Native vector index (cosine similarity)                   │
 │  - hub_score (degree centrality)                             │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+### Visualization pipeline (`viz/`)
+
+```
+staging/skills/*.yaml
+    │
+    ▼ parse_skills.py         — builds graph.json (nodes + keyword edges)
+    │
+    ▼ enrich_semantic.py      — adds KMeans communities + UMAP 2D positions
+    │   (reads embeddings from Neo4j, runs KMeans n=18, UMAP 1536D→2D)
+    │
+    ▼ build_html.py           — inlines graph.json into index_template.html
+    │
+    ▼ index.html              — standalone D3.js visualization (amber theme)
+                                gitignored — rebuild locally
+```
+
+> **Note on embedding strategy:** two separate embedding sets are maintained:
+> - **Search (Neo4j):** `payload.instructions` — full skill prompt, best semantic search quality
+> - **Visualization (KMeans/UMAP):** same Neo4j embeddings — clusters may be denser but positions are semantically meaningful
 
 ---
 
@@ -110,7 +133,7 @@ docker-compose up -d
 # Step 1 — Convert skills to YAML (requires your skills source)
 python scripts/convert_skills.py
 
-# Step 2 — Generate semantic embeddings + inject edges
+# Step 2 — Generate semantic embeddings + inject keyword edges
 python scripts/embed_skills.py
 
 # Step 3 — Connect archetypes to domain skills
@@ -119,9 +142,25 @@ python scripts/merge_archetypes.py
 # Step 4 — Load into Neo4j (dry-run first)
 python -m registry.cli load staging/skills/ --schema skills/schema.json --dry-run
 python -m registry.cli load staging/skills/ --schema skills/schema.json
+
+# Step 5 — Upgrade to V3 embeddings (payload.instructions) for better search quality
+#           Run H005 experiment first to generate the cache, then:
+python scripts/push_embeddings_v3.py
 ```
 
-### 5. Connect to Claude
+### 5. Build the visualization (optional)
+
+```bash
+# Build graph.json from staging skills
+python viz/parse_skills.py
+
+# Enrich with semantic layout (requires Neo4j running)
+python viz/enrich_semantic.py   # ~30s for UMAP on 732 skills
+
+# Output: viz/index.html — open in browser, no server needed
+```
+
+### 6. Connect to Claude
 
 Add to your `claude_desktop_config.json` (`%APPDATA%\Claude\` on Windows):
 
@@ -212,7 +251,7 @@ Read a knowledge-base document safely (path-confined, extension-whitelisted).
   description: String
   type: String        // "domain" | "tool" | "role" | "cluster"
   hub_score: Float    // degree centrality [0.0 - 1.0]
-  embedding: Float[]  // 1536-dim OpenAI vector
+  embedding: Float[]  // 1536-dim vector (payload.instructions)
   payload_json: String // JSON: instructions, tools, knowledge
 })
 
@@ -223,6 +262,21 @@ Read a knowledge-base document safely (path-confined, extension-whitelisted).
 [:EXTENDS]           // A specialises B
 [:PART_OF]           // A belongs to cluster B
 ```
+
+---
+
+## Embedding strategy
+
+Five embedding strategies were tested and measured on 20 queries (Precision@5, MRR):
+
+| Strategy | Text embedded | P@5 | Notes |
+|---|---|---|---|
+| V1 — description only | 1–2 sentences | 0.700 | Baseline, in production until 2026-05-10 |
+| V2 — rich text | name + desc + caps + reqs | ~0.72 | caps/reqs empty in current dataset |
+| V3 — payload.instructions | Full skill prompt (~6700 chars) | **0.875** | **Current production** |
+| TF-IDF keywords | Top-30 discriminative terms | — | Increases graph density, not useful for viz |
+
+Key insight: `payload.instructions` contains explicit technical terms (`MLflow`, `CSRF`, `medallion architecture`) that short descriptions omit, recovering 5 queries where V1 returned 0 precision.
 
 ---
 
@@ -258,4 +312,6 @@ MIT
 - [FastMCP](https://github.com/jlowin/fastmcp) — Python MCP server framework
 - [Neo4j](https://neo4j.com/) — Graph database with native vector index
 - [OpenAI](https://platform.openai.com/) — `text-embedding-3-small` embeddings
+- [D3.js](https://d3js.org/) — Interactive skill graph visualization
+- [UMAP](https://umap-learn.readthedocs.io/) — Dimensionality reduction for viz layout
 - [Model Context Protocol](https://modelcontextprotocol.io/) — Claude tool integration
