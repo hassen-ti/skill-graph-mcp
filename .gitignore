@@ -7,6 +7,10 @@
 staging/
 index_metadata.json
 
+# Viz — generated files (rebuild with enrich_semantic.py + build_html.py)
+viz/graph.json
+viz/index.html
+
 # Python
 __pycache__/
 *.py[cod]
