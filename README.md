@@ -27,7 +27,7 @@ User: "I want to build a real-time e-commerce site with Stripe"
 |---|---|
 | Skills in graph | 732 nodes |
 | Semantic edges | 3,364 relationships |
-| Embedding model | OpenAI `text-embedding-3-small` (1536 dims) |
+| Embedding model | OpenAI `text-embedding-3-large` (3072 dims) |
 | Embedding source | `payload.instructions` (full skill prompt, ~6700 chars avg) |
 | Graph database | Neo4j 5.x with native vector index |
 | Average node degree | 8.8 |
@@ -307,11 +307,18 @@ MIT
 
 ---
 
+## Skills source
+
+The 732 skills embedded in this graph come from the [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) repository — a curated collection of structured expert prompts (`.md` files), each covering a specific technical domain.
+
+---
+
 ## Built with
 
+- [antigravity-awesome-skills](https://github.com/sickn33/antigravity-awesome-skills) — source skill library (732 structured expert prompts)
 - [FastMCP](https://github.com/jlowin/fastmcp) — Python MCP server framework
 - [Neo4j](https://neo4j.com/) — Graph database with native vector index
-- [OpenAI](https://platform.openai.com/) — `text-embedding-3-small` embeddings
+- [OpenAI](https://platform.openai.com/) — `text-embedding-3-large` embeddings (3072 dims, full skill content)
 - [D3.js](https://d3js.org/) — Interactive skill graph visualization
 - [UMAP](https://umap-learn.readthedocs.io/) — Dimensionality reduction for viz layout
 - [Model Context Protocol](https://modelcontextprotocol.io/) — Claude tool integration
