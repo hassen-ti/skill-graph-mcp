@@ -38,8 +38,6 @@ User: "I want to build a real-time e-commerce site with Stripe"
 
 ## Architecture
 
-### MCP Server
-
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                        Claude (LLM)                          │
@@ -110,22 +108,17 @@ docker-compose up -d
 ### 4. Build the knowledge graph
 
 ```bash
-# Step 1 — Convert skills to YAML (requires your skills source)
-python scripts/convert_skills.py
+# Clone the skills source (antigravity-awesome-skills)
+# and place it at data/skills_lib/ — then:
 
-# Step 2 — Generate semantic embeddings + inject keyword edges
-python scripts/embed_skills.py
+# Step 1 — Convert SKILL.md files into enriched YAMLs
+python -m pipeline.enrich_skills --clean
 
-# Step 3 — Connect archetypes to domain skills
-python scripts/merge_archetypes.py
+# Step 2 — (Re)create the Neo4j vector index (run once, or after changing dims)
+python -m registry.cli reindex
 
-# Step 4 — Load into Neo4j (dry-run first)
-python -m registry.cli load staging/skills/ --schema skills/schema.json --dry-run
+# Step 3 — Load skills into Neo4j and generate embeddings
 python -m registry.cli load staging/skills/ --schema skills/schema.json
-
-# Step 5 — Upgrade to V3 embeddings (payload.instructions) for better search quality
-#           Run H005 experiment first to generate the cache, then:
-python scripts/push_embeddings_v3.py
 ```
 
 ### 5. Connect to Claude
@@ -219,7 +212,7 @@ Read a knowledge-base document safely (path-confined, extension-whitelisted).
   description: String
   type: String        // "domain" | "tool" | "role" | "cluster"
   hub_score: Float    // degree centrality [0.0 - 1.0]
-  embedding: Float[]  // 1536-dim vector (payload.instructions)
+  embedding: Float[]  // 3072-dim vector (text-embedding-3-large, full skill content)
   payload_json: String // JSON: instructions, tools, knowledge
 })
 
@@ -239,12 +232,11 @@ Five embedding strategies were tested and measured on 20 queries (Precision@5, M
 
 | Strategy | Text embedded | P@5 | Notes |
 |---|---|---|---|
-| V1 — description only | 1–2 sentences | 0.700 | Baseline, in production until 2026-05-10 |
-| V2 — rich text | name + desc + caps + reqs | ~0.72 | caps/reqs empty in current dataset |
-| V3 — payload.instructions | Full skill prompt (~6700 chars) | **0.875** | **Current production** |
-| TF-IDF keywords | Top-30 discriminative terms | — | Increases graph density, not useful for viz |
+| V1 — description only | 1–2 sentences | 0.700 | Baseline |
+| V2 — rich text | name + desc + caps + reqs | ~0.72 | caps/reqs sparse in dataset |
+| V3 — payload.instructions | Full skill prompt (~6700 chars) | **0.875** | **Current** |
 
-Key insight: `payload.instructions` contains explicit technical terms (`MLflow`, `CSRF`, `medallion architecture`) that short descriptions omit, recovering 5 queries where V1 returned 0 precision.
+Key insight: `payload.instructions` contains explicit technical terms (`MLflow`, `CSRF`, `medallion architecture`) that short descriptions omit — recovering 5 queries where V1 returned 0 precision.
 
 ---
 
