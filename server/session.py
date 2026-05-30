@@ -1,17 +1,27 @@
 # server/session.py
 """
-Module-level session state for the Skill Graph MCP server.
+Session state for the Skill Graph MCP server.
 
-Because stdio transport = 1 process = 1 session, a module-level singleton
-is the correct scope for tracking rate limits and visited state.
+stdio transport (local): module-level singleton tracks state across the
+lifetime of the single process = single session.
+
+HTTP/Streamable-HTTP transport (Vercel): each tool call is a separate
+stateless HTTP request, so per-request fresh state is returned instead.
+The VERCEL env var (set automatically by Vercel) triggers this behaviour.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 
 GET_SKILL_RATE_LIMIT: int = 10
 ACTIVE_TOOL_CAP: int = 15
+
+_IS_HTTP: bool = bool(
+    os.getenv("VERCEL")
+    or os.getenv("MCP_TRANSPORT", "").lower() in ("sse", "streamable-http")
+)
 
 
 @dataclass
@@ -27,7 +37,14 @@ _state: SessionState = SessionState()
 
 
 def get_state() -> SessionState:
-    """Return the current session state singleton."""
+    """
+    Return session state.
+
+    Under stdio: returns the persistent module-level singleton.
+    Under HTTP: returns a fresh instance per call (stateless behaviour).
+    """
+    if _IS_HTTP:
+        return SessionState()
     return _state
 
 

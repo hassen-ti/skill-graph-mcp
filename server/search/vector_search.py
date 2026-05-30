@@ -1,6 +1,7 @@
 # server/search/vector_search.py
 import os
 import logging
+from typing import Any
 from openai import AsyncOpenAI
 from neo4j import AsyncDriver
 from server.models.skill_node import SkillCandidate
